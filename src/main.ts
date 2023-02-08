@@ -4,8 +4,8 @@ import sh from 'shellsync'
 
 async function run(): Promise<void> {
   try {
-    sh`echo "Hello World"`
-    sh`echo "The time is: $(date)"`
+    core.debug(sh`echo "Hello World"`)
+    core.debug(sh`echo "The time is: $(date)"`)
 
     // const ms: string = core.getInput('milliseconds')
     // core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
