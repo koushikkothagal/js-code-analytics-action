@@ -9,9 +9,9 @@ async function run(): Promise<void> {
     // eslint-disable-next-line no-console
     const scanType: string = core.getInput('type')
     if (scanType === 'text') {
-      const text: string = core.getInput('text')
+      const pattern: string = core.getInput('pattern')
       // eslint-disable-next-line no-console
-      console.log(sh.array`git grep ${text}`)
+      console.log(sh.array`git grep ${pattern}`)
     }
 
     // const ms: string = core.getInput('milliseconds')

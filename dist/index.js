@@ -49,9 +49,9 @@ function run() {
             // eslint-disable-next-line no-console
             const scanType = core.getInput('type');
             if (scanType === 'text') {
-                const text = core.getInput('text');
+                const pattern = core.getInput('pattern');
                 // eslint-disable-next-line no-console
-                console.log(shellsync_1.default.array `git grep ${text}`);
+                console.log(shellsync_1.default.array `git grep ${pattern}`);
             }
             // const ms: string = core.getInput('milliseconds')
             // core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
