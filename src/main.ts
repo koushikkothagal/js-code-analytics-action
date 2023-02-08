@@ -6,7 +6,6 @@ async function run(): Promise<void> {
   try {
     core.debug(sh`echo "Hello World"`)
     core.debug(sh`echo "The time is: $(date)"`)
-    // eslint-disable-next-line no-console
     const scanType: string = core.getInput('type')
     if (scanType === 'text') {
       const pattern: string = core.getInput('pattern')

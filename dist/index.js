@@ -46,7 +46,6 @@ function run() {
         try {
             core.debug((0, shellsync_1.default) `echo "Hello World"`);
             core.debug((0, shellsync_1.default) `echo "The time is: $(date)"`);
-            // eslint-disable-next-line no-console
             const scanType = core.getInput('type');
             if (scanType === 'text') {
                 const pattern = core.getInput('pattern');
