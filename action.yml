@@ -1,11 +1,11 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'JS Code Analytics'
+description: 'JS Code Analytics'
+author: 'Koushik Kothagal'
 inputs:
   milliseconds: # change this
-    required: true
+    required: false
     description: 'input description here'
-    default: 'default value if applicable'
+    default: '1000'
 runs:
   using: 'node16'
   main: 'dist/index.js'
