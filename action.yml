@@ -2,10 +2,13 @@ name: 'JS Code Analytics'
 description: 'JS Code Analytics'
 author: 'Koushik Kothagal'
 inputs:
-  milliseconds: # change this
+  type:
     required: false
-    description: 'input description here'
-    default: '1000'
+    description: 'type of scan needed: text, code'
+    default: 'text'
+  pattern:
+    required: true
+    description: 'pattern to search'
 runs:
   using: 'node16'
   main: 'dist/index.js'
