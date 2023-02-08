@@ -34,18 +34,24 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(186));
-const wait_1 = __nccwpck_require__(817);
+const shellsync_1 = __importDefault(__nccwpck_require__(441));
+// import {wait} from './wait'
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const ms = core.getInput('milliseconds');
-            core.debug(`Waiting ${ms} milliseconds ...`); // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
-            core.debug(new Date().toTimeString());
-            yield (0, wait_1.wait)(parseInt(ms, 10));
-            core.debug(new Date().toTimeString());
-            core.setOutput('time', new Date().toTimeString());
+            (0, shellsync_1.default) `echo "Hello World"`;
+            (0, shellsync_1.default) `echo "The time is: $(date)"`;
+            // const ms: string = core.getInput('milliseconds')
+            // core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
+            // core.debug(new Date().toTimeString())
+            // await wait(parseInt(ms, 10))
+            // core.debug(new Date().toTimeString())
+            // core.setOutput('time', new Date().toTimeString())
         }
         catch (error) {
             if (error instanceof Error)
@@ -54,37 +60,6 @@ function run() {
     });
 }
 run();
-
-
-/***/ }),
-
-/***/ 817:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.wait = void 0;
-function wait(milliseconds) {
-    return __awaiter(this, void 0, void 0, function* () {
-        return new Promise(resolve => {
-            if (isNaN(milliseconds)) {
-                throw new Error('milliseconds not a number');
-            }
-            setTimeout(() => resolve('done!'), milliseconds);
-        });
-    });
-}
-exports.wait = wait;
 
 
 /***/ }),
@@ -1850,6 +1825,649 @@ exports.checkBypass = checkBypass;
 
 /***/ }),
 
+/***/ 287:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+var util = __nccwpck_require__(669),
+    winCmd = /^win/.test(process.platform),
+    escapePath;
+
+function escapePathSh(path) {
+  if (!/^[A-Za-z0-9_\/-]+$/.test(path))
+    return ("'" + path.replace(/'/g, "'\"'\"'") + "'").replace(/''/g, '');
+  else
+    return path;
+}
+
+function escapePathWin(path) {
+  if (!/^[A-Za-z0-9_\/-]+$/.test(path))
+    return '"' + path.replace(/"/g, '""') + '"';
+  else
+    return path;
+}
+
+if (winCmd) {
+  escapePath = escapePathWin;
+} else {
+  escapePath = escapePathSh;
+}
+
+module.exports = function(stringOrArray) {
+  var ret = [];
+
+  if (typeof(stringOrArray) == 'string') {
+    return escapePath(stringOrArray);
+  } else {      
+    stringOrArray.forEach(function(member) {
+      ret.push(escapePath(member));
+    });
+    return ret.join(' ');
+  }
+};
+
+if (winCmd) {
+  // Cannot escape messages on windows
+  module.exports.msg = function(x) {
+    if (typeof(x) == 'string') {
+      return x;
+    } else {       
+      return x.join(' ');
+    }
+  };
+} else {
+  module.exports.msg = module.exports;
+}
+
+
+/***/ }),
+
+/***/ 441:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+/*----------------------------------------------------------------------------------------------
+ *  Copyright (c) Lennart C. L. Kats.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *----------------------------------------------------------------------------------------------*/
+const child_process = __nccwpck_require__(129);
+const fs_1 = __nccwpck_require__(747);
+const signals_1 = __nccwpck_require__(305);
+const mocking_1 = __nccwpck_require__(606);
+const npmRunPath = __nccwpck_require__(135);
+const shellEscape = __nccwpck_require__(287);
+const bashBuiltinError = 2;
+const metaStream = 3;
+const mockStream = 4;
+const stdioDefault = [0, "pipe", "inherit", "pipe", "pipe"];
+const stdioHushed = [0, "pipe", "pipe", "pipe", "pipe"];
+const stdioOut = [0, "inherit", "inherit", "pipe", "pipe"];
+var ParseState;
+(function (ParseState) {
+    ParseState["BackTick"] = "BackTick";
+    ParseState["Expression"] = "Expression";
+    ParseState["DoubleQuoted"] = "DoubleQuoted";
+    ParseState["SingleQuoted"] = "SingleQuoted";
+})(ParseState || (ParseState = {}));
+;
+function createShell(options, mocks = new mocking_1.MockManager()) {
+    options.encoding = options.encoding || "utf8";
+    options.maxBuffer = options.maxBuffer || 10 * 1024 * 1024;
+    options.stdio = options.stdio || stdioDefault;
+    options.shell = options.shell || "/bin/bash";
+    options.preferLocal = options.preferLocal === undefined ? true : options.preferLocal;
+    const exec = (overrideOptions, commands, ...commandVars) => {
+        let basicCommand = quote(commands, ...commandVars);
+        let command = wrapShellCommand(basicCommand, options, mocks);
+        if (signals_1.isHandleSignalsActive())
+            command = signals_1.wrapDisableInterrupts(command);
+        if (mocks.mockAllCommandsEnabled && parseFragment([], basicCommand).hasSubshell)
+            throw new Error("Command appears to have a subshell; mockAllCommands() does not support subshells: " + basicCommand);
+        const childOptions = Object.assign({}, options, overrideOptions);
+        if (childOptions.input != null)
+            childOptions.stdio = ["pipe", ...childOptions.stdio.slice(1)];
+        if (options.preferLocal)
+            childOptions.env = Object.assign(npmRunPath.env(), childOptions.env);
+        const child = child_process.spawnSync(options.shell, ["-c", command], childOptions);
+        const { output, stdout, stderr, status, error } = child;
+        if (output && output[metaStream].startsWith("\0\0"))
+            throw Object.assign(new Error(output[metaStream].substr(2).trim()), { code: "EMOCK" });
+        else if (output && output[metaStream].startsWith("\0"))
+            signals_1.parseEmittedSignal(output[metaStream]);
+        else if (output && output[metaStream])
+            shell.options.cwd = output[metaStream];
+        if (options.debug && stderr)
+            console.error(cleanShellOutput(stderr));
+        if (output && output[mockStream])
+            mocks.processMockStream(output[mockStream]);
+        if (status) {
+            if (status === bashBuiltinError)
+                validateCommandSyntax(basicCommand);
+            throw Object.assign(new Error((stderr ? stderr + "\n" : "")
+                + "Error: Process exited with error code " + status), { code: status, stderr });
+        }
+        if (error && error.code === "ENOENT" && childOptions.cwd && !fs_1.existsSync(childOptions.cwd)) {
+            error.message = `cwd does not exist: ${childOptions.cwd}`;
+            throw error;
+        }
+        if (error)
+            throw error;
+        return cleanShellOutput(stdout) || "";
+    };
+    const shell = {
+        get options() { return options; },
+        set options(value) { options = value; },
+        out: (commands, ...commandVars) => {
+            return exec({ stdio: stdioOut }, commands, ...commandVars);
+        },
+        array: (commands, ...commandVars) => {
+            return exec({}, commands, ...commandVars).split(options.fieldSeperator || "\n");
+        },
+        json: (commands, ...commandVars) => {
+            return JSON.parse(exec({}, commands, ...commandVars));
+        },
+        test: (commands, ...commandVars) => {
+            try {
+                exec({ stdio: stdioHushed }, commands, ...commandVars);
+                return true;
+            }
+            catch (e) {
+                if (e.code === "EMOCK")
+                    throw e;
+                return false;
+            }
+        },
+        echo: (strings, ...args) => {
+            const value = strings.map((string, i) => {
+                if (i === strings.length - 1)
+                    return string;
+                return string + args[i];
+            }).join("");
+            if (mocks.isMocked("echo"))
+                return sh `echo ${value}`;
+            console.log(value);
+        },
+        mock: (pattern, command) => {
+            return mocks.mock(pattern, command, validateCommandSyntax, options);
+        },
+        mockAllCommands: () => {
+            mocks.mockAllCommandsEnabled = true;
+        },
+        unmockAllCommands: () => {
+            mocks.mockAllCommandsEnabled = false;
+            mocks.clear();
+        },
+        unmock: (pattern) => {
+            mocks.unmock(pattern, validateCommandSyntax, options);
+        },
+        handleSignals: signals_1.handleSignals,
+        handleSignalsEnd: signals_1.handleSignalsEnd,
+    };
+    const validateCommandSyntax = (command) => {
+        let parse = child_process.spawnSync(options.shell, ["-n"], { input: command });
+        if (!parse.status)
+            return;
+        const error = `Syntax error in command: \`${command}\`\n${parse.stderr}`;
+        throw Object.assign(new Error(error), { code: parse.status, stderr: parse.stderr });
+    };
+    const execOrCreateShell = (arg = {}, ...commandVars) => {
+        if (arg.length)
+            return exec({}, arg, ...commandVars);
+        return createShell(Object.assign({}, options, arg));
+    };
+    return Object.assign(execOrCreateShell, shell);
+}
+const quote = (commands, ...commandVars) => {
+    if (typeof commands === "string") {
+        console.warn("Warning: shellsync function invoked using string argument; please invoke using template literal syntax, e.g. sh `command`;");
+        return [commands, ...commandVars.map(shellStringify)].join(" ");
+    }
+    let parseState = { states: [], shouldQuote: true };
+    return commands.map((command, i) => {
+        if (i === commands.length - 1)
+            return command;
+        parseState = parseFragment(parseState.states, command);
+        if (commandVars[i] === undefined)
+            throw new Error("Undefined variable in `" + commands.join("${...}") + "`");
+        return command + (parseState.shouldQuote ? shellStringify(commandVars[i]) : commandVars[i]);
+    }).join("");
+};
+/**
+ * Parse a shell fragment to determine whether variables inside it should be
+ * quoted or not. For example, shellsync will quote for
+ * `echo ${var}` but not for `echo "${var}"`.
+ */
+function parseFragment(states, fragment) {
+    let hasSubshell = fragment[0] === "(";
+    let maybeAtLineStart = true;
+    const { BackTick, SingleQuoted, DoubleQuoted, Expression } = ParseState;
+    const process = (state) => {
+        if (last() === state)
+            return states.pop();
+        if (last() === SingleQuoted)
+            return;
+        states.push(state);
+    };
+    const last = () => states[states.length - 1];
+    for (var i = 0; i < fragment.length; i++) {
+        let char = fragment[i];
+        switch (char) {
+            case '\\':
+                i++;
+                break;
+            case '`':
+                if (last() == SingleQuoted)
+                    break;
+                hasSubshell = true;
+                process(BackTick);
+                break;
+            case '"':
+                process(DoubleQuoted);
+                break;
+            case "'":
+                if (last() === DoubleQuoted)
+                    break;
+                process(SingleQuoted);
+                break;
+            case '$':
+                if (fragment[i + 1] !== '(')
+                    break;
+                if (last() == SingleQuoted)
+                    break;
+                states.push(Expression);
+                hasSubshell = true;
+                break;
+            case ')':
+                if (last() !== Expression)
+                    break;
+                process(Expression);
+                break;
+        }
+    }
+    return {
+        states,
+        /** Whether the next template variable should be quoted. */
+        shouldQuote: [SingleQuoted, DoubleQuoted].indexOf(last()) === -1,
+        /** Whether a subshell was used. Underapproximated. */
+        hasSubshell,
+    };
+}
+function cleanShellOutput(output) {
+    return output && output.replace(/\n$/, "") || output;
+}
+;
+function shellStringify(arg) {
+    if (arg == null)
+        return "''";
+    if (arg instanceof UnquotedPart)
+        return arg.toString();
+    return shellEscape(stringify(arg));
+}
+function stringify(arg) {
+    if (typeof arg === "string")
+        return arg;
+    if (arg != null)
+        return arg.toString() || "";
+    return "";
+}
+const unquoted = (...args) => {
+    return new UnquotedPart(args);
+};
+class UnquotedPart {
+    constructor(args) {
+        this.args = args;
+    }
+    toString() {
+        return this.args.map(stringify).join(" ");
+    }
+}
+function wrapShellCommand(command, options, mocks) {
+    const startDebugTrace = options.debug ? `{ builtin set -x; } 2>/dev/null` : `:`;
+    const stopDebugTrace = options.debug ? `{ builtin set +x; } 2>/dev/null` : `:`;
+    const { defineMocks, endMocks } = mocks.createMockFunctions(options, startDebugTrace, stopDebugTrace);
+    return `:
+        ${defineMocks}
+        ${startDebugTrace}
+        ${command}
+        { RET=$?; } 2>/dev/null
+        ${endMocks}
+        ${stopDebugTrace}
+
+        # Capture current directory
+        printf "$PWD">&${metaStream}
+        exit $RET
+    `;
+}
+const sharedMocks = new mocking_1.MockManager();
+const shell = createShell({}, sharedMocks);
+const shellHushed = createShell(Object.assign({}, shell.options, { stdio: stdioHushed }), sharedMocks);
+const sh = Object.assign(shell, {
+    /** Execute a command. Return stdout as a string; print stderr. */
+    sh: shell,
+    /** Execute a command. Don't print anything to stdout or stderr. */
+    shh: shellHushed,
+    quote,
+    unquoted,
+    default: shell,
+});
+module.exports = sh;
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 606:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const metaStream = 3;
+const mockStream = 4;
+class MockManager {
+    constructor() {
+        this.mocks = [];
+    }
+    clear() {
+        this.mocks.splice(0, this.mocks.length);
+    }
+    mock(pattern, command = "", validateCommandSyntax, options) {
+        if (pattern.match(/^[\./]/))
+            throw new Error("Unsupported mock pattern. To mock an external command like /bin/ls, call the command using 'command /bin/ls' and create a mock for 'command /bin/ls'");
+        if (pattern.match(/([\\"')(\n\r\$!`&<>\$;]|\.\*)/))
+            throw new Error("Unsupported character sequence in pattern: " + RegExp.$1);
+        if (pattern.match(/^\w*\*\w*/))
+            throw new Error("Pattern matching in first word is not supported: " + pattern);
+        if (pattern.match(/^(builtin|unset|exit)\b/))
+            throw new Error("Pattern not supported: " + pattern);
+        const mock = {
+            name: pattern.split(" ")[0],
+            pattern,
+            patternEscaped: pattern.replace(/\s/g, "\\ "),
+            patternLength: pattern.replace(/\*$/, "").length,
+            command: command || "",
+            mock: { called: 0 }
+        };
+        validateCommandSyntax(`${mock.name}() {\n${mock.command}\n:\n}`);
+        this.removeMock(pattern, false);
+        this.mocks.push(mock);
+        this.mocks.sort((a, b) => b.patternLength - a.patternLength);
+        return mock.mock;
+    }
+    unmock(pattern, validateCommandSyntax, options) {
+        if (!pattern.match(/^[A-Za-z0-9_$-]*\*?/))
+            throw new Error("Unsupported unmock pattern: " + pattern);
+        this.removeMock(pattern, true);
+        let commandName = pattern.split(" ")[0];
+        if (this.mockAllCommandsEnabled)
+            this.mock(pattern, `${commandName} "$@"`, validateCommandSyntax, options);
+    }
+    isMocked(name) {
+        return this.mocks.find(m => m.name === name);
+    }
+    removeMock(pattern, matchWithGlob) {
+        let patternRegExp = new RegExp(pattern.replace(/\*/g, ".*").replace(/\[/g, "\\["));
+        for (let i = this.mocks.length - 1; i >= 0; i--) {
+            if (matchWithGlob ? this.mocks[i].pattern.match(patternRegExp) : this.mocks[i].pattern === pattern)
+                this.mocks.splice(i, 1);
+        }
+    }
+    processMockStream(output) {
+        for (let pattern of output.split("\0")) {
+            for (let mock of this.mocks) {
+                if (mock.pattern === pattern)
+                    mock.mock.called++;
+            }
+        }
+    }
+    createMockFunctions(options, startDebugTrace, stopDebugTrace) {
+        let defineMocks = `
+            # Mock definitions
+            __execMock() {
+                case "$@" in
+                ${this.mocks.map(m => `
+                    ${m.patternEscaped})
+                        builtin shift;
+                        (   ${m.name}() { builtin command ${m.name} "$@"; }
+                            builtin printf '\\0${m.pattern}\\0' >&${mockStream}
+                            ${startDebugTrace}
+                            : mock for ${m.name} :
+                            ${m.command}
+                        ) ;;
+                `).join("\n")}
+                *) builtin command "$@" ;;
+                esac
+            }
+
+            # Functions to intercept mocked commands
+            ${this.mocks.map(m => `
+                ${m.name}() { ${stopDebugTrace}; __execMock ${m.name} "$@"; }
+            `).join("\n")}
+        `;
+        let endMocks = this.mocks.length ? `{ unset -f printf; } 2>/dev/null` : ``;
+        if (!this.mockAllCommandsEnabled)
+            return { defineMocks, endMocks };
+        defineMocks += `
+            __mockAllCommands() {
+                local COMMAND=$BASH_COMMAND
+                if [[ $COMMAND =~ ^(builtin|return|exit|unset|export|RET=\\$?|:$) ]]; then
+                    return
+                fi
+                case "$COMMAND" in
+                ${this.mocks.map(m => `
+                    ${m.patternEscaped}) ;;
+                `).join("\n")}
+                    [\\./]*)  
+                        builtin printf "\\0\\0" >&${metaStream}
+                        builtin echo "No mock for external command. To mock this command, use 'command $COMMAND' and create a mock that matches 'command $COMMAND'." >&${metaStream}
+                        if [[ \${COMMAND%% *} != $COMMAND ]]; then
+                            builtin echo "You can also use sh.unmock('\${COMMAND%% *} *') to remove the mock for this command." >&${metaStream}
+                        else
+                            builtin echo "You can also use sh.unmock('$COMMAND') to remove the mock for this command." >&${metaStream} 
+                        fi
+                        builtin exit 1 ;;
+                    *)
+                        builtin printf "\\0\\0" >&${metaStream}
+                        if [[ \${COMMAND%% *} != $COMMAND ]]; then
+                            builtin echo "No mock for command. To mock this command, add a mock for '$COMMAND' or a pattern like '\${COMMAND%% *} *'." >&${metaStream}
+                            builtin echo "You can also use sh.unmock('\${COMMAND%% *} *') to remove the mock for this command." >&${metaStream} 
+                        else
+                            builtin echo "No mock for command. To mock this command, add a mock for '$COMMAND'." >&${metaStream}
+                            builtin echo "You can also use sh.unmock('$COMMAND') to remove the mock for this command." >&${metaStream} 
+                        fi
+                        builtin exit 1
+                esac
+            }
+            builtin trap "${stopDebugTrace}; __mockAllCommands; ${startDebugTrace}" DEBUG
+        `;
+        endMocks += `
+            { builtin trap - DEBUG; } 2>/dev/null
+        `;
+        return { defineMocks, endMocks };
+    }
+}
+exports.MockManager = MockManager;
+//# sourceMappingURL=mocking.js.map
+
+/***/ }),
+
+/***/ 305:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+/*----------------------------------------------------------------------------------------------
+ *  Copyright (c) Lennart C. L. Kats.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *----------------------------------------------------------------------------------------------*/
+const shellEscape = __nccwpck_require__(287);
+let isActive = false;
+let options = { timeout: null };
+let signalReceived;
+const handleSignal = (signal) => {
+    if (!signalReceived && options.timeout) {
+        setTimeout(() => {
+            handleSignalsEnd();
+            process.kill(process.pid, signal);
+        }, options.timeout);
+    }
+    signalReceived = signal;
+};
+const handleSignalInt = () => handleSignal("SIGINT");
+const handleSignalTerm = () => handleSignal("SIGTERM");
+const handleSignalQuit = () => handleSignal("SIGQUIT");
+/** @internal */
+function handleSignals(_options) {
+    Object.assign(options, _options);
+    if (signalReceived)
+        handleSignalsEnd();
+    isActive = true;
+    process.on("SIGINT", handleSignalInt);
+    process.on("SIGQUIT", handleSignalQuit);
+    process.on("SIGTERM", handleSignalTerm);
+}
+exports.handleSignals = handleSignals;
+/** @internal */
+function handleSignalsEnd() {
+    isActive = false;
+    process.removeListener("SIGINT", handleSignalInt);
+    process.removeListener("SIGQUIT", handleSignalQuit);
+    process.removeListener("SIGTERM", handleSignalTerm);
+    if (signalReceived)
+        process.kill(process.pid, signalReceived);
+}
+exports.handleSignalsEnd = handleSignalsEnd;
+/** @internal */
+function isHandleSignalsActive() {
+    return isActive;
+}
+exports.isHandleSignalsActive = isHandleSignalsActive;
+/** @internal */
+function parseEmittedSignal(signal) {
+    const match = signal.match(/^\0(SIGINT|SIGQUIT|SIGTERM|SIGTIMEOUT)/);
+    if (!match)
+        return;
+    if (match[1] === "SIGTIMEOUT") {
+        handleSignalsEnd();
+        return process.kill(process.pid, signalReceived);
+    }
+    signalReceived = match[1] || signalReceived;
+}
+exports.parseEmittedSignal = parseEmittedSignal;
+/**
+ * Add a wrapper script that intercepts Control-C presses.
+ * @internal
+ */
+function wrapDisableInterrupts(script) {
+    // Launch a new shell as a background process, intercepting any Control-C
+    // sent to the foreground. Not efficient, but effective.
+    return `:
+        TRAPPED=
+        TIMEOUT=
+        triggerTimeout() {
+            local PID=$$
+            ${options.timeout
+        ? `(sleep ${Math.round(options.timeout / 1000)}; kill -SIGUSR1 $PID 2>/dev/null) &`
+        : ``}
+        }
+        onTimeout() {
+            printf '\\0SIGTIMEOUT'>&3
+            trap : TERM
+            kill -TERM $CHILD_PID 2>/dev/null
+            wait $CHILD_PID
+        }
+        trap "TRAPPED=1; printf '\\0SIGINT'>&3; trap : INT; triggerTimeout" INT
+        trap "TRAPPED=1; printf '\\0SIGQUIT'>&3; trap : QUIT; triggerTimeout" QUIT
+        trap "TRAPPED=1; printf '\\0SIGTERM'>&3; trap : TERM; triggerTimeout" TERM
+        trap onTimeout USR1
+
+        $SHELL -c ${shellEscape(script)} </dev/stdin &
+        CHILD_PID=$!
+        
+        while true; do
+            wait $CHILD_PID
+            RET=$?
+            if [ "$TRAPPED" ]; then
+                TRAPPED=
+            else
+                exit $RET
+            fi
+        done
+    `;
+}
+exports.wrapDisableInterrupts = wrapDisableInterrupts;
+//# sourceMappingURL=signals.js.map
+
+/***/ }),
+
+/***/ 135:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+const path = __nccwpck_require__(622);
+const pathKey = __nccwpck_require__(284);
+
+module.exports = opts => {
+	opts = Object.assign({
+		cwd: process.cwd(),
+		path: process.env[pathKey()]
+	}, opts);
+
+	let prev;
+	let pth = path.resolve(opts.cwd);
+	const ret = [];
+
+	while (prev !== pth) {
+		ret.push(path.join(pth, 'node_modules/.bin'));
+		prev = pth;
+		pth = path.resolve(pth, '..');
+	}
+
+	// ensure the running `node` binary is used
+	ret.push(path.dirname(process.execPath));
+
+	return ret.concat(opts.path).join(path.delimiter);
+};
+
+module.exports.env = opts => {
+	opts = Object.assign({
+		env: process.env
+	}, opts);
+
+	const env = Object.assign({}, opts.env);
+	const path = pathKey({env});
+
+	opts.path = env[path];
+	env[path] = module.exports(opts);
+
+	return env;
+};
+
+
+/***/ }),
+
+/***/ 284:
+/***/ ((module) => {
+
+"use strict";
+
+module.exports = opts => {
+	opts = opts || {};
+
+	const env = opts.env || process.env;
+	const platform = opts.platform || process.platform;
+
+	if (platform !== 'win32') {
+		return 'PATH';
+	}
+
+	return Object.keys(env).find(x => x.toUpperCase() === 'PATH') || 'Path';
+};
+
+
+/***/ }),
+
 /***/ 294:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -2781,6 +3399,14 @@ exports.default = _default;
 
 "use strict";
 module.exports = require("assert");
+
+/***/ }),
+
+/***/ 129:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("child_process");
 
 /***/ }),
 
