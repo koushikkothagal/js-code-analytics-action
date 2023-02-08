@@ -47,7 +47,12 @@ function run() {
             core.debug((0, shellsync_1.default) `echo "Hello World"`);
             core.debug((0, shellsync_1.default) `echo "The time is: $(date)"`);
             // eslint-disable-next-line no-console
-            console.log((0, shellsync_1.default) `echo "The time is: $(date)"`);
+            const scanType = core.getInput('type');
+            if (scanType === 'text') {
+                const text = core.getInput('text');
+                // eslint-disable-next-line no-console
+                console.log(shellsync_1.default.array `git grep ${text}`);
+            }
             // const ms: string = core.getInput('milliseconds')
             // core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
             // core.debug(new Date().toTimeString())
