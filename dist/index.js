@@ -44,8 +44,8 @@ const shellsync_1 = __importDefault(__nccwpck_require__(441));
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            (0, shellsync_1.default) `echo "Hello World"`;
-            (0, shellsync_1.default) `echo "The time is: $(date)"`;
+            core.debug((0, shellsync_1.default) `echo "Hello World"`);
+            core.debug((0, shellsync_1.default) `echo "The time is: $(date)"`);
             // const ms: string = core.getInput('milliseconds')
             // core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
             // core.debug(new Date().toTimeString())
