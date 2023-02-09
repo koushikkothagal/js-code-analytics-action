@@ -9,6 +9,9 @@ inputs:
   pattern:
     required: true
     description: 'pattern to search'
+  appInsightsKey:
+    required: false
+    description: 'App Insights Key'
 runs:
   using: 'node16'
   main: 'dist/index.js'
