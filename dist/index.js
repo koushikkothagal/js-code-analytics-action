@@ -14,10 +14,15 @@ exports.textFinder = void 0;
 const occurence_1 = __nccwpck_require__(767);
 const shellsync_1 = __importDefault(__nccwpck_require__(6441));
 const textFinder = (criteria) => {
-    const occurences = shellsync_1.default.array `git grep -I ${criteria.pattern}`;
-    return occurences
-        .filter(line => line.includes(':'))
-        .map(o => occurence_1.Occurence.from(o));
+    try {
+        const occurences = shellsync_1.default.array `git grep -I ${criteria.pattern}`;
+        return occurences
+            .filter(line => line.includes(':'))
+            .map(o => occurence_1.Occurence.from(o));
+    }
+    catch (e) {
+        return [];
+    }
 };
 exports.textFinder = textFinder;
 
@@ -65,7 +70,7 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         const scanType = core.getInput('type') || 'text';
         if (scanType === 'text') {
-            const pattern = core.getInput('pattern');
+            const pattern = core.getInput('pattern') || 'occurences';
             const occurences = (0, text_finder_1.textFinder)({ pattern, type: scanType });
             const appInsightsKey = core.getInput('appInsightsKey');
             if (appInsightsKey) {
@@ -92,9 +97,12 @@ run();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Occurence = void 0;
 class Occurence {
-    constructor(file, line) {
+    constructor(file, line, actionName = process.env.ACTION_NAME, sha = process.env.GITHUB_SHA, repository = process.env.GITHUB_REPOSITORY) {
         this.file = file;
         this.line = line;
+        this.actionName = actionName;
+        this.sha = sha;
+        this.repository = repository;
         this.file = file;
         this.line = line;
     }
