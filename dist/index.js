@@ -1,6 +1,29 @@
 require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 221:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.textFinder = void 0;
+const occurence_1 = __nccwpck_require__(767);
+const shellsync_1 = __importDefault(__nccwpck_require__(441));
+const textFinder = (criteria) => {
+    const occurences = shellsync_1.default.array `git grep -I ${criteria.pattern}`;
+    return occurences
+        .filter(line => line.includes(':'))
+        .map(o => occurence_1.Occurence.from(o));
+};
+exports.textFinder = textFinder;
+
+
+/***/ }),
+
 /***/ 109:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -34,38 +57,44 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(186));
-const shellsync_1 = __importDefault(__nccwpck_require__(441));
-// import {wait} from './wait'
+const text_finder_1 = __nccwpck_require__(221);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
-        try {
-            core.debug((0, shellsync_1.default) `echo "Hello World"`);
-            core.debug((0, shellsync_1.default) `echo "The time is: $(date)"`);
-            const scanType = core.getInput('type');
-            if (scanType === 'text') {
-                const pattern = core.getInput('pattern');
-                // eslint-disable-next-line no-console
-                console.log(shellsync_1.default.array `git grep ${pattern}`);
-            }
-            // const ms: string = core.getInput('milliseconds')
-            // core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
-            // core.debug(new Date().toTimeString())
-            // await wait(parseInt(ms, 10))
-            // core.debug(new Date().toTimeString())
-            // core.setOutput('time', new Date().toTimeString())
-        }
-        catch (error) {
-            if (error instanceof Error)
-                core.setFailed(error.message);
+        const scanType = core.getInput('type') || 'text';
+        if (scanType === 'text') {
+            const pattern = core.getInput('pattern') || 'file';
+            // eslint-disable-next-line no-console
+            console.log((0, text_finder_1.textFinder)({ pattern, type: scanType }));
         }
     });
 }
 run();
+
+
+/***/ }),
+
+/***/ 767:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Occurence = void 0;
+class Occurence {
+    constructor(file, line) {
+        this.file = file;
+        this.line = line;
+        this.file = file;
+        this.line = line;
+    }
+    static from(fullLine) {
+        const [file, line] = fullLine.split(':');
+        return new Occurence(file.trim(), line.trim());
+    }
+}
+exports.Occurence = Occurence;
 
 
 /***/ }),

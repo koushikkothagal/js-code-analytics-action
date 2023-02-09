@@ -1,28 +1,12 @@
 import * as core from '@actions/core'
-import sh from 'shellsync'
-// import {wait} from './wait'
+import {textFinder} from './finders/text-finder'
 
 async function run(): Promise<void> {
-  try {
-    core.debug(sh`echo "Hello World"`)
-    core.debug(sh`echo "The time is: $(date)"`)
-    const scanType: string = core.getInput('type')
-    if (scanType === 'text') {
-      const pattern: string = core.getInput('pattern')
-      // eslint-disable-next-line no-console
-      console.log(sh.array`git grep ${pattern}`)
-    }
-
-    // const ms: string = core.getInput('milliseconds')
-    // core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
-
-    // core.debug(new Date().toTimeString())
-    // await wait(parseInt(ms, 10))
-    // core.debug(new Date().toTimeString())
-
-    // core.setOutput('time', new Date().toTimeString())
-  } catch (error) {
-    if (error instanceof Error) core.setFailed(error.message)
+  const scanType: string = core.getInput('type') || 'text'
+  if (scanType === 'text') {
+    const pattern = core.getInput('pattern') || 'file'
+    // eslint-disable-next-line no-console
+    console.log(textFinder({pattern, type: scanType}))
   }
 }
 
