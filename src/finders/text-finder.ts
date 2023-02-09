@@ -4,8 +4,12 @@ import {Occurence} from '../occurence'
 import sh from 'shellsync'
 
 export const textFinder: Finder = (criteria: FindCriteria) => {
-  const occurences: string[] = sh.array`git grep -I ${criteria.pattern}`
-  return occurences
-    .filter(line => line.includes(':'))
-    .map(o => Occurence.from(o))
+  try {
+    const occurences: string[] = sh.array`git grep -I ${criteria.pattern}`
+    return occurences
+      .filter(line => line.includes(':'))
+      .map(o => Occurence.from(o))
+  } catch (e) {
+    return []
+  }
 }
