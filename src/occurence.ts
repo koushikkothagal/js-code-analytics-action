@@ -4,7 +4,7 @@ export class Occurence {
     this.line = line
   }
   static from(fullLine: string): Occurence {
-    const [file, line] = fullLine.split(':')
-    return new Occurence(file.trim(), line.trim())
+    const [file, ...lineTokens] = fullLine.split(':')
+    return new Occurence(file.trim(), lineTokens.join().trim())
   }
 }
