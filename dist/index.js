@@ -15,10 +15,11 @@ const occurence_1 = __nccwpck_require__(767);
 const shellsync_1 = __importDefault(__nccwpck_require__(6441));
 const textFinder = (criteria) => {
     try {
-        const occurences = shellsync_1.default.array `git grep -I ${criteria.pattern}`;
+        const { pattern } = criteria;
+        const occurences = shellsync_1.default.array `git grep -I ${pattern}`;
         return occurences
             .filter(line => line.includes(':'))
-            .map(o => occurence_1.Occurence.from(o));
+            .map(o => occurence_1.Occurence.from(o, pattern));
     }
     catch (e) {
         return [];
@@ -97,18 +98,20 @@ run();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Occurence = void 0;
 class Occurence {
-    constructor(file, line, actionName = process.env.ACTION_NAME, sha = process.env.GITHUB_SHA, repository = process.env.GITHUB_REPOSITORY) {
+    constructor(file, line, pattern, type = 'text', sha = process.env.GITHUB_SHA, repository = process.env.GITHUB_REPOSITORY, actor = process.env.GITHUB_ACTOR) {
         this.file = file;
         this.line = line;
-        this.actionName = actionName;
+        this.pattern = pattern;
+        this.type = type;
         this.sha = sha;
         this.repository = repository;
+        this.actor = actor;
         this.file = file;
         this.line = line;
     }
-    static from(fullLine) {
+    static from(fullLine, pattern) {
         const [file, ...lineTokens] = fullLine.split(':');
-        return new Occurence(file.trim(), lineTokens.join().trim());
+        return new Occurence(file.trim(), lineTokens.join().trim(), pattern);
     }
 }
 exports.Occurence = Occurence;
