@@ -5,10 +5,11 @@ import sh from 'shellsync'
 
 export const textFinder: Finder = (criteria: FindCriteria) => {
   try {
-    const occurences: string[] = sh.array`git grep -I ${criteria.pattern}`
+    const {pattern} = criteria
+    const occurences: string[] = sh.array`git grep -I ${pattern}`
     return occurences
       .filter(line => line.includes(':'))
-      .map(o => Occurence.from(o))
+      .map(o => Occurence.from(o, pattern))
   } catch (e) {
     return []
   }
