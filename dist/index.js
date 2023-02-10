@@ -66,6 +66,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
 const app_insights_reporter_1 = __nccwpck_require__(2330);
+const occurence_1 = __nccwpck_require__(767);
 const text_finder_1 = __nccwpck_require__(7221);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -81,6 +82,8 @@ function run() {
             else {
                 // eslint-disable-next-line no-console
                 console.log(occurences);
+                // eslint-disable-next-line no-console
+                console.log(occurence_1.OccurenceSummary.from(occurences));
             }
         }
     });
@@ -96,7 +99,7 @@ run();
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Occurence = void 0;
+exports.OccurenceSummary = exports.Occurence = void 0;
 class Occurence {
     constructor(file, line, pattern, type = 'text', sha = process.env.GITHUB_SHA, repository = process.env.GITHUB_REPOSITORY, actor = process.env.GITHUB_ACTOR) {
         this.file = file;
@@ -115,6 +118,25 @@ class Occurence {
     }
 }
 exports.Occurence = Occurence;
+class OccurenceSummary {
+    constructor(pattern, count, type = 'text', sha = process.env.GITHUB_SHA, repository = process.env.GITHUB_REPOSITORY, actor = process.env.GITHUB_ACTOR, timestamp = new Date().toISOString()) {
+        this.pattern = pattern;
+        this.count = count;
+        this.type = type;
+        this.sha = sha;
+        this.repository = repository;
+        this.actor = actor;
+        this.timestamp = timestamp;
+        this.pattern = pattern;
+        this.count = count;
+    }
+    static from(occurences) {
+        const pattern = occurences[0].pattern;
+        const count = occurences.length;
+        return new OccurenceSummary(pattern, count);
+    }
+}
+exports.OccurenceSummary = OccurenceSummary;
 
 
 /***/ }),
@@ -126,6 +148,7 @@ exports.Occurence = Occurence;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.appInsightsReporter = exports.initializeAppInsights = void 0;
+const occurence_1 = __nccwpck_require__(767);
 const applicationinsights_1 = __nccwpck_require__(9962);
 let client;
 const initializeAppInsights = (key) => {
@@ -143,6 +166,10 @@ const appInsightsReporter = (occurences) => {
             }
         });
     }
+    client.trackEvent({
+        name: 'TEXT_MATCH_SUMMARY',
+        properties: Object.assign({}, occurence_1.OccurenceSummary.from(occurences))
+    });
 };
 exports.appInsightsReporter = appInsightsReporter;
 

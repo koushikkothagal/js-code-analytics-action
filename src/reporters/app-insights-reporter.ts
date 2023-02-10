@@ -1,5 +1,5 @@
+import {Occurence, OccurenceSummary} from '../occurence'
 import {TelemetryClient, defaultClient, setup} from 'applicationinsights'
-import {Occurence} from '../occurence'
 import {Reporter} from './reporter'
 
 let client: TelemetryClient
@@ -19,4 +19,10 @@ export const appInsightsReporter: Reporter = (occurences: Occurence[]) => {
       }
     })
   }
+  client.trackEvent({
+    name: 'TEXT_MATCH_SUMMARY',
+    properties: {
+      ...OccurenceSummary.from(occurences)
+    }
+  })
 }

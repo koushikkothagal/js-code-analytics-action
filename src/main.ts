@@ -3,6 +3,7 @@ import {
   appInsightsReporter,
   initializeAppInsights
 } from './reporters/app-insights-reporter'
+import {OccurenceSummary} from './occurence'
 import {textFinder} from './finders/text-finder'
 
 async function run(): Promise<void> {
@@ -18,6 +19,8 @@ async function run(): Promise<void> {
     } else {
       // eslint-disable-next-line no-console
       console.log(occurences)
+      // eslint-disable-next-line no-console
+      console.log(OccurenceSummary.from(occurences))
     }
   }
 }
